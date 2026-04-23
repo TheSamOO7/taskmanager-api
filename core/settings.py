@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'users',
+    'workspaces',
 ]
 
 MIDDLEWARE = [
@@ -138,3 +139,10 @@ REST_FRAMEWORK = {
 
 STATIC_URL = 'static/'
 AUTH_USER_MODEL = 'users.User'
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
