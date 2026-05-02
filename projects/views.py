@@ -7,6 +7,7 @@ from .serializers import (
     ProjectSerializer, TaskSerializer,
     CommentSerializer, ActivityLogSerializer
 )
+from .tasks import send_task_assigned_email
 
 
 def is_workspace_member(user, workspace):
@@ -89,6 +90,14 @@ class TaskListCreateView(generics.ListCreateAPIView):
             action='Task created',
             new_value=task.title
         )
+        # send email if task is assigned
+        if task.assignee:
+            send_task_assigned_email.delay(
+                assignee_email=task.assignee.email,
+                assignee_name=task.assignee.full_name,
+                task_title=task.title,
+                project_name=project.name
+            )
 
 
 class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -101,7 +110,7 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         task = self.get_object()
         old_status = task.status
-        old_assignee = str(task.assignee) if task.assignee else 'None'
+        old_assignee = task.assignee
 
         updated_task = serializer.save()
 
@@ -115,17 +124,21 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
                 new_value=updated_task.status
             )
 
-        # log assignee change
-        new_assignee = str(updated_task.assignee) if updated_task.assignee else 'None'
-        if old_assignee != new_assignee:
+        # log and notify assignee change
+        if old_assignee != updated_task.assignee and updated_task.assignee:
             ActivityLog.objects.create(
                 task=updated_task,
                 actor=self.request.user,
                 action='Assignee changed',
-                old_value=old_assignee,
-                new_value=new_assignee
+                old_value=str(old_assignee) if old_assignee else 'None',
+                new_value=str(updated_task.assignee)
             )
-
+            send_task_assigned_email.delay(
+                assignee_email=updated_task.assignee.email,
+                assignee_name=updated_task.assignee.full_name,
+                task_title=updated_task.title,
+                project_name=updated_task.project.name
+            )
 
 # ── Comments ──────────────────────────────────────────────
 
