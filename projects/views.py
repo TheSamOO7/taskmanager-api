@@ -34,8 +34,8 @@ class ProjectListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         workspace = self.get_workspace()
         if not is_workspace_member(self.request.user, workspace):
-            raise PermissionError("You are not a member of this workspace.")
-        serializer.save(workspace=workspace, created_by=self.request.user)
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You are not a member of this workspace.")
 
 
 class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
